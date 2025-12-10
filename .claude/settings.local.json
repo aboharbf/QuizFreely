@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(C:Usersaboha.condaenvsmathnetpython.exe quick_cuda_test.py)",
+      "Bash(powershell -Command \"& ''C:\\Users\\aboha\\.conda\\envs\\mathnet\\python.exe'' quick_cuda_test.py\")",
+      "Bash(powershell -Command \"nvidia-smi\")",
+      "Bash(powershell -Command \"& ''C:\\Users\\aboha\\.conda\\envs\\mathnet\\python.exe'' -m pip index versions torch\")",
+      "Bash(powershell -Command:*)",
+      "Bash(del clean_install.bat clean_install.sh test_torch_availability.py)",
+      "Bash(conda run:*)",
+      "Bash(cat:*)",
+      "Bash(dir:*)",
+      "Bash(python extract_blocks.py:*)",
+      "Bash(conda env list:*)",
+      "Bash(conda activate:*)",
+      "Bash(C:Usersaboha.condaenvsmathnetpython.exe extract_blocks.py pdfs/ProblemSet3.pdf --outdir extracted_blocks)",
+      "Bash(python -m pip:*)",
+      "Bash(python -m py_compile:*)",
+      "Bash(python question_block_extractor.py:*)",
+      "Bash(python -c \"import sys; sys.argv = [''''test'''', ''''--help'''']; exec(open(''''question_block_extractor.py'''').read().split(''''if __name__'''')[0] + ''''\\nparser = argparse.ArgumentParser(); main_locals = {}; exec(open(\"\"question_block_extractor.py\"\").read().split(\"\"def main():\"\")[1].split(\"\"args = parser.parse_args()\"\")[0], {\"\"argparse\"\": __import__(\"\"argparse\"\"), \"\"parser\"\": parser}); parser.print_help()'''')\")",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(tree:*)",
+      "Bash(dir /B /A:D \"C:\\Projects\\QuizFreely\")",
+      "Bash(npm audit:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
