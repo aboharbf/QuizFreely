@@ -47,7 +47,10 @@ npm install                            # Installs packages in ./node_modules/
 2. **Go** (v1.21 or higher) - For the backend API
    - Download: https://go.dev/dl/
 
-3. **Git** - For cloning repositories
+3. **PostgreSQL** (v14 or higher) - Database for the backend API
+   - Download: https://www.postgresql.org/download/
+
+4. **Git** - For cloning repositories
 
 ### Optional but Recommended
 
@@ -87,7 +90,117 @@ node --version  # Verify
 
 **Without nvm:** Just install Node.js from https://nodejs.org/ (LTS version recommended)
 
-### 2. Set Up Directory Structure
+### 2. Install PostgreSQL
+
+The backend API requires PostgreSQL. Here's how to install it on different platforms:
+
+**Windows:**
+
+1. Download the installer from https://www.postgresql.org/download/windows/
+2. Run the installer and follow the setup wizard:
+   - Choose installation directory (default is fine)
+   - Select all components (PostgreSQL Server, pgAdmin, Command Line Tools)
+   - Choose a data directory (default is fine)
+   - **Set a password for the `postgres` superuser** - remember this!
+   - Keep the default port `5432`
+   - Complete the installation
+3. The installer should start PostgreSQL as a Windows service automatically
+
+**Verify installation (PowerShell):**
+```powershell
+# Check if PostgreSQL service is running
+Get-Service -Name postgresql*
+
+# Or connect using psql (may need to add to PATH first)
+psql -U postgres -c "SELECT version();"
+```
+
+**macOS:**
+
+Using Homebrew (recommended):
+```bash
+# Install PostgreSQL
+brew install postgresql@16
+
+# Start PostgreSQL service
+brew services start postgresql@16
+
+# Verify it's running
+psql postgres -c "SELECT version();"
+```
+
+Or download from https://www.postgresql.org/download/macosx/
+
+**Linux (Ubuntu/Debian):**
+```bash
+# Install PostgreSQL
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+
+# Start the service
+sudo systemctl start postgresql
+sudo systemctl enable postgresql  # Start on boot
+
+# Verify it's running
+sudo -u postgres psql -c "SELECT version();"
+```
+
+### 3. Set Up PostgreSQL Database
+
+After installing PostgreSQL, you need to create the database, user, and schema. The SQL scripts in `api/db/` make this easy.
+
+#### Step 1: Create the database
+
+**Using pgAdmin (recommended for Windows):**
+1. Open pgAdmin (installed with PostgreSQL)
+2. Connect to your local server
+3. Right-click "Databases" → Create → Database
+   - Name: `quizfreely_db`
+   - Click Save
+
+**Using psql (macOS/Linux):**
+```bash
+sudo -u postgres psql -c "CREATE DATABASE quizfreely_db;"
+```
+
+#### Step 2: Create the API user
+
+1. In pgAdmin, right-click on `quizfreely_db` → Query Tool
+2. Open and run `api/db/create_api_user.sql`, or paste:
+```sql
+CREATE ROLE quizfreely_api NOINHERIT LOGIN PASSWORD 'your_password_here';
+GRANT CONNECT ON DATABASE quizfreely_db TO quizfreely_api;
+```
+
+**Important:** Change `'your_password_here'` to a secure password, and remember it for your `.env` file.
+
+#### Step 3: Run the schema setup
+
+Still in the Query Tool connected to `quizfreely_db`:
+1. Open `api/db/full_schema_setup.sql`
+2. Click Execute (▶ button or F5)
+
+This creates all the tables, schemas, and permissions needed by the API.
+
+**Using psql (alternative):**
+```bash
+# Create user
+psql -U postgres -d quizfreely_db -f api/db/create_api_user.sql
+
+# Create schema
+psql -U postgres -d quizfreely_db -f api/db/full_schema_setup.sql
+```
+
+#### Step 4: Test the connection
+
+```bash
+psql -U quizfreely_api -d quizfreely_db -h localhost
+# Enter password when prompted
+# If you see the psql prompt, it works!
+\q
+```
+
+### 4. Set Up Directory Structure
 
 Create a parent folder for both repositories:
 
@@ -129,14 +242,15 @@ Edit `.env` with your preferred text editor:
 ```bash
 # Required settings
 PORT=8008
-DB_TYPE=sqlite                    # Options: sqlite, postgres
-DB_PATH=./quizfreely.db          # For sqlite
+DB_URL=postgres://quizfreely_api:your_password_here@localhost:5432/quizfreely_db
 SECRET_KEY=your-secret-key-here  # Generate a random string
 
 # Optional settings
-ENABLE_REGISTRATION=true
+PRETTY_LOG=true                   # Human-readable logs (nice for development)
 ENABLE_OAUTH_GOOGLE=false
 ```
+
+**Important:** Replace `your_password_here` in `DB_URL` with the password you set when creating the `quizfreely_api` user in PostgreSQL.
 
 **Generate a secure SECRET_KEY:**
 
@@ -177,8 +291,8 @@ The API should now be running at `http://localhost:8008`
 # Open another terminal and test:
 curl http://localhost:8008/health
 
-# Or visit in browser: http://localhost:8008/graphql
-# You should see the GraphQL playground
+# Or visit in browser: http://localhost:8008/graphiql
+# You should see the GraphiQL playground
 ```
 
 ---
@@ -277,33 +391,33 @@ The web app should now be running at `http://localhost:8080`
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ Your Computer                                            │
+│ Your Computer                                           │
 ├─────────────────────────────────────────────────────────┤
-│                                                          │
+│                                                         │
 │  Terminal 1: Backend API                                │
-│  ┌──────────────────────────────────┐                  │
-│  │ Go API Server                    │                  │
-│  │ Port: 8008                       │                  │
-│  │ Database: ./quizfreely.db        │                  │
-│  └──────────────────────────────────┘                  │
-│                      ▲                                   │
+│  ┌──────────────────────────────────┐                   │
+│  │ Go API Server                    │                   │
+│  │ Port: 8008                       │                   │
+│  │ Database: PostgreSQL :5432       │                   │
+│  └──────────────────────────────────┘                   │
+│                      ▲                                  │
 │                      │ GraphQL requests                 │
-│                      │                                   │
+│                      │                                  │
 │  Terminal 2: Web App                                    │
-│  ┌──────────────────────────────────┐                  │
-│  │ Vite Dev Server                  │                  │
-│  │ Port: 8080                       │                  │
-│  │ Proxies /api → localhost:8008    │                  │
-│  └──────────────────────────────────┘                  │
-│                      ▲                                   │
+│  ┌──────────────────────────────────┐                   │
+│  │ Vite Dev Server                  │                   │
+│  │ Port: 8080                       │                   │
+│  │ Proxies /api → localhost:8008    │                   │
+│  └──────────────────────────────────┘                   │
+│                      ▲                                  │
 │                      │ HTTP requests                    │
-│                      │                                   │
+│                      │                                  │
 │  Browser: http://localhost:8080                         │
-│  ┌──────────────────────────────────┐                  │
-│  │ QuizFreely UI                    │                  │
-│  │ + IndexedDB (local storage)      │                  │
-│  └──────────────────────────────────┘                  │
-│                                                          │
+│  ┌──────────────────────────────────┐                   │
+│  │ QuizFreely UI                    │                   │
+│  │ + IndexedDB (local storage)      │                   │
+│  └──────────────────────────────────┘                   │
+│                                                         │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -458,6 +572,66 @@ PORT=3000  # Use a different port
 2. Verify `API_URL=http://localhost:8008` in `web/.env`
 3. Test API directly: `curl http://localhost:8008/health`
 
+### PostgreSQL Connection Refused
+
+**Error:** `dial tcp [::1]:5432: connectex: No connection could be made because the target machine actively refused it`
+
+**Solution:**
+
+1. **Check if PostgreSQL is running:**
+
+   Windows (PowerShell):
+```powershell
+   Get-Service -Name postgresql*
+   # If stopped, start it:
+   Start-Service -Name "postgresql-x64-16"  # Adjust version number
+```
+
+   macOS:
+```bash
+   brew services list | grep postgresql
+   # If not running:
+   brew services start postgresql@16
+```
+
+   Linux:
+```bash
+   sudo systemctl status postgresql
+   # If not running:
+   sudo systemctl start postgresql
+```
+
+2. **Verify database and user exist:**
+```bash
+   psql -U postgres -c "\l"  # List databases - look for quizfreely_db
+   psql -U postgres -c "\du"  # List users - look for quizfreely_api
+```
+
+3. **Check your DB_URL in `.env`:**
+```bash
+   DB_URL=postgres://quizfreely_api:your_password@localhost:5432/quizfreely_db
+```
+   - Verify the password matches what you set for `quizfreely_api`
+   - Ensure the database name is correct
+
+4. **Test direct connection:**
+```bash
+   psql -U quizfreely_api -d quizfreely_db -h localhost
+```
+
+### PostgreSQL Authentication Failed
+
+**Error:** `password authentication failed for user "quizfreely_api"`
+
+**Solution:**
+1. Reset the user's password:
+```bash
+   psql -U postgres
+   ALTER USER quizfreely_api WITH PASSWORD 'new_password_here';
+   \q
+```
+2. Update `DB_URL` in your `.env` file with the new password
+
 ### node_modules Issues
 
 **Error:** `Module not found` or `Cannot find module`
@@ -566,16 +740,27 @@ Create in `quizfreely-local/`:
 version: '3.8'
 
 services:
+  db:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=quizfreely_api
+      - POSTGRES_PASSWORD=your_password_here
+      - POSTGRES_DB=quizfreely_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
   api:
     build: ./api
     ports:
       - "8008:8008"
     environment:
       - PORT=8008
-      - DB_TYPE=sqlite
-      - DB_PATH=/data/quizfreely.db
-    volumes:
-      - api-data:/data
+      - DB_URL=postgres://quizfreely_api:your_password_here@db:5432/quizfreely_db
+      - SECRET_KEY=your-secret-key-here
+    depends_on:
+      - db
 
   web:
     build: ./quizfreely/web
@@ -588,7 +773,21 @@ services:
       - api
 
 volumes:
-  api-data:
+  postgres-data:
+```
+
+**Quick start with Docker (no local PostgreSQL needed):**
+```bash
+# Just run PostgreSQL in Docker for local development
+docker run --name quizfreely-postgres \
+  -e POSTGRES_USER=quizfreely_api \
+  -e POSTGRES_PASSWORD=your_password_here \
+  -e POSTGRES_DB=quizfreely_db \
+  -p 5432:5432 \
+  -d postgres:16
+
+# Then set DB_URL in your api/.env:
+# DB_URL=postgres://quizfreely_api:your_password_here@localhost:5432/quizfreely_db
 ```
 
 ### Usage
@@ -612,10 +811,15 @@ docker-compose down
 
 - [ ] Install Node.js (v18+) and npm
 - [ ] Install Go (v1.21+)
+- [ ] Install PostgreSQL (v14+)
+- [ ] Set up PostgreSQL:
+  - [ ] Create user `quizfreely_api` with a password
+  - [ ] Create database `quizfreely_db` owned by `quizfreely_api`
+  - [ ] (Or use Docker: `docker run --name quizfreely-postgres -e POSTGRES_USER=quizfreely_api -e POSTGRES_PASSWORD=yourpass -e POSTGRES_DB=quizfreely_db -p 5432:5432 -d postgres:16`)
 - [ ] Clone both repositories into `quizfreely-local/`
 - [ ] Backend API:
   - [ ] `cd api && cp .env.example .env`
-  - [ ] Edit `.env` with SECRET_KEY
+  - [ ] Edit `.env` with DB_URL and SECRET_KEY
   - [ ] `go mod download`
   - [ ] `go run .` → Running on port 8008
 - [ ] Web App:
